@@ -1,4 +1,0 @@
-WiSim
-=====
-
-Wireless transmission simulation

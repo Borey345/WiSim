@@ -1,76 +1,149 @@
-nbits       = 1024;             % Size of information sequence.
+function [mean_ber_coded mean_per] = ofdm( modulationType, beta, coderOn, channelOn, snrValues )
+nSubcarriers = 48;
+
+if nargin == 0
+    modulationType  = 2;                % Type of modulation: 1-PBSK,2-QPSK,4-16_QAM,6-64_QAM.
+end
+
+if nargin < 2
+    beta = 0.3;
+end
+
+if nargin < 3
+    coderOn = 1;                % Флаг включения кодера: 1 - кодер включен; 0 - кодер выключен.
+end
+
+if nargin < 4
+    channelOn = 1;                % Флаг включения кодера: 1 - кодер включен; 0 - кодер выключен.
+end
+nbits = 2^2*nSubcarriers;
+
+%nbits = 16;
 N           = 1;                % Number of antenn
-Modulation  = 1;                % Type of modulation: 1-PBSK,2-QPSK,4-16_QAM,6-64_QAM.
+
+color = 'r';
 nRealiz     = 1;                % The number of realizations in statistical ensemble.
-coderRate        = 1;                % Темп кодирования: 1 - 1/2; 2 - 3/4; 3 - 2/3.
-n           = 0;                % Флаг включения кодера: 1 - кодер включен; 0 - кодер выключен.
-m           = 0;                % Флаг включения декодера Витерби: 1 - декодер включен; 0 - декодер выключен.
+if channelOn
+    nbits = 2^4*nSubcarriers;
+    nChannel = 200;% 400
+    nNoise = 20; %5
+    if modulationType ==6
+        nbits = 2^4*nSubcarriers;
+        nChannel = 100;
+    end
+else
+    nbits = 2^10*nSubcarriers;
+    nChannel = 1;
+    nNoise = 1;
+end
+coderRate   = 1;                % Темп кодирования: 1 - 1/2; 2 - 3/4; 3 - 2/3.
+
+m           = 1;                % Флаг включения декодера Витерби: 1 - декодер включен; 0 - декодер выключен.
 dectype     = 'unquant';        % Декодер Витерби с мягкими метриками.
-added       = 0;                % Для OFDM - систем added не ноль
+global added;                % Для OFDM - систем added не ноль
+added = 0;
 
 fd          = 100 ;             % Max Dopler Frequency
 Timp        = 100*10^(-6);      % Time of impuls
-L           = 10000;            % Length
+L           = 6000;            % Length
 type        = 1;
+
+packetLength = 48*2;
 %-------------------------------------------------------------------------%
-ii        = 0;
+counter = 0;
 consol = waitbar(0,'Please wait...');
-SNR = zeros( 16, 1 );
-for snr = -10 : 2 : 20                                % in dB
-    P       = 1*10^(snr/10);                          % The power of signal (variance of noise is 1)
-    ii      = ii + 1;
-    SNR(ii) = snr;
+SNR = zeros( 22, 1 );
+% 
+% H = channelCoefficients( beta );
+% H = H*64/sum( abs(H) );
+%H = (sqrt(0.5) + sqrt(0.5)*1i)*ones( 64, 1 );
+nPoints = -min(snrValues)+max(snrValues);
+for snr = min(snrValues):max(snrValues)                                % in dB
+    noiseRate = 10^(-snr/20);                        %power is always 1, noise if different
+    %noiseRate = 0;
+    counter = counter + 1;
+    SNR(counter) = snr;
     k=0;
-    for jj = 1 : nRealiz
-         % a       = double(randn(1, Modulation*nbits) > 0);
-        a = randi( [0 1], 1, Modulation*nbits );% input an information sequence
-        a_coder = Coder_Wi_Fi( a, coderRate, n );                   % action of coder
-        d = mapper( a_coder, Modulation );         % action of mapper
-%       for q=1 : nbits 
-%         for k=1: nbits-1
-%              s  = d*(exp((-j)*2*pi*q*k/nbits))*1/sqrt(nbits);
-%              k1(g) = k1(g) + s;
-%         end
-%       end  
-        h = ( randn( N, size( d,2 ) )+1j*randn( N,size( d,2 ) ) )./sqrt(2);   %Релеевский канал
-%         
-%           w=conj(h);
-%           b=h.*w;
-%           c=b;
-       
-        for g=1 : nbits 
-            lp=0;
-                for l=1 : nbits
-                    s= h(l).*d(g)*(exp((-1i)*2*pi*g*l/nbits))*1/sqrt(nbits);
-                    lp = lp+ s;
-                end 
-            l1(g)=lp;
+    for realisation = 1 : nRealiz
+        bits = randi( [0 1], 1, modulationType*nbits );
+        if coderOn
+            codedBits = Coder_Wi_Fi( bits );                   % action of coder
+        else
+            codedBits = bits;
         end
         
-        noise   = 1*(randn(N,size(d,2)) + 1i*randn(N,size(d,2)))/sqrt(2);
-%         noise=(w.*noise);
-      
-        for g=1 : nbits 
-              qp=0;
-         for q=1: nbits
-            z= noise(q)*(exp((-1i)*2*pi*g*q/nbits))*1/sqrt(nbits);
-            qp = qp+ z;   
-         end 
-        q1(g)=qp;
-        end  
+        codedBits = interleaver( codedBits, modulationType, nSubcarriers );
+        modulatedSignal = modulator( codedBits, modulationType );         % action of modulator
+        mappedSignalOriginal = mapper( modulatedSignal, nSubcarriers );  
         
-        x = l1 + q1;
+        for noiseRealiz = 1:nNoise
+            
+            noise = noiseRate*(randn(size( mappedSignalOriginal,1 ),size(mappedSignalOriginal,2))...
+                + 1i*randn(size( mappedSignalOriginal,1 ),size(mappedSignalOriginal,2)))/sqrt(2);
+            %noise = zeros( size( mappedSignalOriginal,1 ), size(mappedSignalOriginal,2) );
+            for channelRealiz = 1:nChannel
+            
+                mappedSignal = mappedSignalOriginal;
+
+                if channelOn
+                    H = channelCoefficients( beta );
+                else 
+                    H = ones( 1, 64 );
+                end
+                %H = ones( 1, 64 )*(channelRealiz/4)*exp(1i*rand());
+                %H = H*64/sum( abs(H) );
+                %H = sqrt( 1:64 );
+                
+
+                if channelOn
+                    for i=1:64
+                        mappedSignal( i,: ) = H( 1, i )*mappedSignal( i, : );
+                    end
+                end
+
+        %         H = ones( size( mappedSignal,1 ),size(mappedSignal,2) );
+        %         H( 7:19, : ) = H( 7:19, : )*0.5;
+        %         H( 20:32, : ) = H( 20:32, : )*0.3;
+        %         H( 33:45, : ) = H( 33:45, : )*1.5;
+        %         H( 46:58, : ) = H( 46:58, : )*1.1;        
+                signalWithNoise = mappedSignal + noise;
+
+                if channelOn
+                    for i=1:64
+                        signalWithNoise( i,: ) = signalWithNoise( i, : )/H( 1, i );
+                    end      
+                end
+
+                demappedSignal = demapper( signalWithNoise );
+                
+                %demappedSignal = demappedSignal*0(abs(H(1,1))^2);
+                
+                channelPowers = channelPowerForDemappedSignal( H', modulationType, size( demappedSignal, 2) );
+
+                demodulatedSignal = demodulator1( demappedSignal, channelPowers, modulationType );       % action of demapper
+                %demodulatedSignal = demapper( demodulatedSignal );
+                demodulatedSignal = deinterleaver( demodulatedSignal, modulationType, nSubcarriers );
+                if coderOn
+                    outBits = decoder( demodulatedSignal );
+                else
+                    outBits = demodulatedSignal > 3;
+                end
+
+                errors = outBits~=bits;
+        %         ber_uncoded(realisation) = mean( errors );
+                per(realisation, noiseRealiz, channelRealiz) = mean( sum( reshape( errors, packetLength, [] ) ) > 0 );
+                ber_coded(realisation, noiseRealiz, channelRealiz) = mean(outBits~=bits); % ber meter
+                %mean(outBits~=bits)
+            end
+        end
         
         
-        out     = demapper(x,Modulation);       % action of demapper
-        mm      = 1:(size(h,2)*Modulation);     % Это punchuring для канальных коэффициентов
-        h_2     = h(ceil(mm/Modulation));
-      h    = h_2;
-        [out_decoder,Num] = DeCoder(out,abs(h),dectype,m,coderRate,Modulation);      % action of decoder
-        ber(jj) = mean(out_decoder(1:Modulation*nbits)~=a(1:Modulation*nbits)); % ber meter
     end
-    mean_ber(ii) = mean(ber);
-    consol = waitbar(ii/20);
+    ber_coded;
+    mean_ber_coded(counter) = mean(mean(mean(ber_coded)));
+%     mean_ber_uncoded(counter) = mean( ber_uncoded );
+    mean_per(counter) = mean(mean(mean( per )));
+    consol = waitbar(counter/nPoints);
 % % figure(1);                                               % practice plots
 % semilogy(SNR,mean_ber,'.r');
 % axis ([-20 20 10^(-4) 1]);
@@ -82,13 +155,18 @@ for snr = -10 : 2 : 20                                % in dB
 end
 close(consol);
 %-------------------------------------------------------------------------%
-figure;                                               % practice plots
-semilogy(SNR,mean_ber);
-axis ([-20 20 10^(-4) 1]);
-title('BER in OFDM system ');
-xlabel('SNR, dB');
-ylabel('BER');
-grid on;
-hold on;
+%figure;                                               % practice plots
+%hold on
+%  semilogy(SNR,mean_ber_coded, color);
+% hold on
+% semilogy(SNR,mean_ber_uncoded, color);
+%semilogy(SNR,mean_per, color);
+% axis ([-1 20 10^(-5) 10^(-1)]);
+%title('BER in OFDM system ');
+% xlabel('SNR, dB');
+% ylabel('BER');
+%legend( 'coded', 'not coded' );
+% grid on;
+% hold on;
  
 

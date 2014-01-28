@@ -1,61 +1,64 @@
-%%
-clear
+%figure
+SNR = -10:1:40;
+beta = 1;
+channelOn = 1;
+coderOn = 0;
+berFigure = figure;
+thFigure = figure;
 
-N_SUBCARRIERS = 64;
-N_SAMPLES = 100;
-in_ofdm = randi( [ 0, 255 ], [N_SUBCARRIERS, N_SAMPLES] );
-inOfdmBin = convertToBin( in_ofdm );
-ofdm = ofdmSignal( inOfdmBin );
+[ber per ] = ofdm( 1, beta, coderOn, channelOn, SNR );
 
-ofdmPowers = abs( ofdm ).^2;
-PAPR_OFDM = max( ofdmPowers )/mean( ofdmPowers );
+save( 'ber mod1 beta1.mat', 'ber' );
+save( 'per mod1 beta1.mat', 'per' );
 
-out_ofdm = ofdmReciever( ofdm, N_SUBCARRIERS );
-out_ofdm = round( real( out_ofdm ) );
-out_ofdm = convertToDec( out_ofdm );
+W = 24/(3.2*10^(-6) );
 
-test = in_ofdm - out_ofdm;
-max( max( test ) )
-min( min( test ) )
+figure( berFigure );
+semilogy( SNR, ber );
+grid on
+hold on
+figure( thFigure );
+grid on
+hold on
 
-%%
+th = (1-per)*W*1;
+semilogy( SNR, th );
 
-Q = 8;
+grid on
+hold on
+[ber per ] = ofdm( 2, beta, coderOn, channelOn, SNR );
+figure( berFigure );
+semilogy( SNR, ber );
+figure( thFigure );
 
-in_scfdma = randi( [0, 255], [1, N_SUBCARRIERS*N_SAMPLES] );
-inScBin = convertToBin( in_scfdma );
+save( 'ber mod2 beta1.mat', 'ber' );
+save( 'per mod2 beta1.mat', 'per' );
 
-subcarriers = ofdmReciever( inScBin', N_SUBCARRIERS );
-distributedMapping = zeros( Q*N_SUBCARRIERS, 8*N_SAMPLES );
+th = (1-per)*W*2;
+plot( SNR, th );
 
-for i = 1:N_SUBCARRIERS
-    distributedMapping( (i-1)*Q + 1, : ) = subcarriers( i, : );
-end
+[ber per ] = ofdm(4, beta, coderOn, channelOn, SNR );
 
-scSignalDistributed = ofdmSignal( distributedMapping );
-distributedPowers = abs( scSignalDistributed ).^2;
+save( 'ber mod4 beta1.mat', 'ber' );
+save( 'per mod4 beta1.mat', 'per' );
 
-PAPR_DISTRIBUTED = max( distributedPowers )/mean( distributedPowers );
+figure( berFigure );
+semilogy( SNR, ber );
+figure( thFigure );
+th = (1-per)*W*4;
+plot( SNR, th );
 
-localisedMapping = [subcarriers;zeros( (Q-1)*N_SUBCARRIERS, 8*N_SAMPLES )];
+[ber per ] = ofdm( 6, beta, coderOn, channelOn, SNR );
 
 
-scSignalLocalised = ofdmSignal( localisedMapping );
-localisedPowers = abs( scSignalLocalised ).^2;
+save( 'ber mod6 beta1.mat', 'ber' );
+save( 'per mod6 beta1.mat', 'per' );
 
-PAPR_LOCALISED = max( localisedPowers )/mean( localisedPowers );
-%_______________________________________________________________________
-recievedDistributed = ofdmReciever( scSignalDistributed, Q*N_SUBCARRIERS );
-subcarriersDistributed = zeros( N_SUBCARRIERS, 8*N_SAMPLES );
-for i = 1:N_SUBCARRIERS
-    subcarriersDistributed( i, : ) = recievedDistributed( (i-1)*Q + 1, : );
-end 
+figure( berFigure );
+semilogy( SNR, ber );
+figure( thFigure );
+th = (1-per)*W*6;
+plot( SNR, th );
 
-recievedBin = ofdmSignal( subcarriersDistributed );
-
-recievedBin = round( real( recievedBin ) );
-recievedDec = convertToDec( recievedBin' );
-
-test = in_scfdma - recievedDec;
-max( max( test ) )
-min( min( test ) )
+figure( berFigure );
+axis ([min(SNR) max(SNR) 10^(-3) 1]);
