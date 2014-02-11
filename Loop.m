@@ -14,7 +14,6 @@ classdef Loop < handle
             obj.loopsArray = loopsArray;
             obj.out = zeros(loopsArray);
             obj.progressBar = waitbar(0, loopCase.getName());
-            obj.allProgress = prod(obj.loopsArray);
             obj.progress = 0;
         end
         function out = start(obj)
@@ -29,8 +28,10 @@ classdef Loop < handle
                 try
                     cellIndices = num2cell(currIndices);
                     obj.out(cellIndices{:}) = loopCase.evaluate(currIndices);
-                    obj.progress = obj.progress + 1;
-                    waitbar( obj.progress/obj.allProgress, obj.progressBar);
+                    if obj.progress+1 ~= currIndices(1)
+                        obj.progress = currIndices(1)-1;
+                        waitbar( obj.progress/obj.loopsArray(1), obj.progressBar);
+                    end
                     return
                 catch err
                     currIndices

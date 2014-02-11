@@ -3,12 +3,9 @@ classdef InterferenceOnlyCase < Case
         LOOP_ARRAY = [5 1000];
         N_SAMPLES = 1000;
         ESTIMATION_SAMPLES = [2 4 6 8 10];
-        INTERFERENCE_TO_NOISE_RATIO_DB = 20;
+        INTERFERENCE_TO_NOISE_RATIO_DB = 10;
         N_ANTENNAS = 2;
-        INTERFERENCE_TYPE = SignalSource.TYPE_GAUSS;
-            
-        INTERFERENCE_TO_NOISE_RATIO = 10^(InterferenceOnlyCase.INTERFERENCE_TO_NOISE_RATIO_DB/10);
-            
+        INTERFERENCE_TYPE = SignalSource.TYPE_GAUSS;            
     end
     
     properties
@@ -21,8 +18,7 @@ classdef InterferenceOnlyCase < Case
         function obj = InterferenceOnlyCase()
             obj@Case('Interference Only', InterferenceOnlyCase.LOOP_ARRAY);
             obj.interferenceSrc = SignalSource(1, InterferenceOnlyCase.INTERFERENCE_TYPE);
-            noisePower = 1/(sqrt(InterferenceOnlyCase.INTERFERENCE_TO_NOISE_RATIO));
-            obj.noiseSrc = SignalSource(noisePower, SignalSource.TYPE_GAUSS);
+            obj.noiseSrc = SignalSource(evaluateNoisePower(InterferenceOnlyCase.INTERFERENCE_TO_NOISE_RATIO_DB), SignalSource.TYPE_GAUSS);
             obj.channel = RayleighChannel(InterferenceOnlyCase.N_ANTENNAS);
         end
                 
@@ -43,11 +39,11 @@ classdef InterferenceOnlyCase < Case
             YN = W'*N;
 
             noisePower = signalPower(YN);
-            out = 10*log10(signalPower(YZ)/noisePower+1);
+            out = signalPower(YZ)/noisePower+1;
         end
         
         function processResults(obj, out)
-            result = mean(out, 2);
+            result = 10*log10(mean(out, 2));
             plot(InterferenceOnlyCase.ESTIMATION_SAMPLES, result);
             grid on
         end

@@ -2,8 +2,8 @@ classdef SignalSource
     %SIGNALSOURCE Summary of this class goes here
     %   Detailed explanation goes here
     properties(Constant)
-        TYPE_GAUSS = 'gauss';
-        TYPE_QPSK = 'qpsk';
+        TYPE_GAUSS = 1;
+        TYPE_QPSK = 2;
         SQRT2 = sqrt(2);
     end
     properties
@@ -17,7 +17,7 @@ classdef SignalSource
         function obj = SignalSource(power, type)
             obj.type = type;
             obj.power = power;
-            obj.magnitude = sqrt(power);
+            obj.magnitude = sqrt(power/2);
         end
         function signal = getSignal(obj, sigSize)
             switch obj.type
@@ -30,7 +30,7 @@ classdef SignalSource
                     qSignal(qSignal == 0) = -1;
                     signal = sSignal + 1i*qSignal;
             end
-            signal = signal*(obj.magnitude/SignalSource.SQRT2);
+            signal = signal*obj.magnitude;
         end
     end
     
