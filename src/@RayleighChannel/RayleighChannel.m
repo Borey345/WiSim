@@ -3,16 +3,17 @@ classdef RayleighChannel
     %   Detailed explanation goes here
     
     properties
-        nChannels
+        nAntennas
     end
     
     methods  
-        function obj = RayleighChannel(nChannels)
-            obj.nChannels = nChannels;
+        function obj = RayleighChannel(nAntennas)
+            obj.nAntennas = nAntennas;
         end
         
         function out = process(obj, in)
-            channelCoefficients = (randn(obj.nChannels, 1) + 1i*randn(obj.nChannels, 1));
+            nChannels = size(in, 3);
+            channelCoefficients = (randn(obj.nAntennas, 1, nChannels) + 1i*randn(obj.nAntennas, 1, nChannels));
             channelCoefficients = channelCoefficients./(abs(channelCoefficients));
             out = bsxfun(@times, channelCoefficients, in);
         end
