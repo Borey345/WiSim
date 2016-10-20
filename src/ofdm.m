@@ -57,6 +57,8 @@ SNR = zeros( 22, 1 );
 % H = channelCoefficients( beta );
 % H = H*64/sum( abs(H) );
 %H = (sqrt(0.5) + sqrt(0.5)*1i)*ones( 64, 1 );
+modulation = QamModulation(QamModulation.nModulatedBitsToModulationType(modulationType));
+
 nPoints = -min(snrValues)+max(snrValues);
 for snr = min(snrValues):max(snrValues)                                % in dB
     noiseRate = 10^(-snr/20);                        %power is always 1, noise if different
@@ -73,7 +75,7 @@ for snr = min(snrValues):max(snrValues)                                % in dB
         end
         
         codedBits = interleaver( codedBits, modulationType, nSubcarriers );
-        modulatedSignal = modulator( codedBits, modulationType );         % action of modulator
+        modulatedSignal = modulation.modulate( codedBits );         % action of modulator
         mappedSignalOriginal = mapper( modulatedSignal, nSubcarriers );  
         
         for noiseRealiz = 1:nNoise
@@ -120,8 +122,7 @@ for snr = min(snrValues):max(snrValues)                                % in dB
                 
                 channelPowers = channelPowerForDemappedSignal( H', modulationType, size( demappedSignal, 2) );
 
-                demodulatedSignal = demodulator1( demappedSignal, channelPowers, modulationType );       % action of demapper
-                %demodulatedSignal = demapper( demodulatedSignal );
+                demodulatedSignal = modulation.demodulate( demappedSignal, channelPowers );       % action of demapper
                 demodulatedSignal = deinterleaver( demodulatedSignal, modulationType, nSubcarriers );
                 if coderOn
                     outBits = decoder( demodulatedSignal );
