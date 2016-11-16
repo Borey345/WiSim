@@ -32,7 +32,7 @@ classdef SignalSource
                     qSignal(qSignal == 0) = -1;
                     signal = sSignal + 1i*qSignal;
                 case SignalSource.TYPE_BIT
-                    signal = randi([0 1], sigSize);
+                    signal = logical(randi([0 1], sigSize));
                     return;
             end
             signal = signal*obj.magnitude;

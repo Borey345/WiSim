@@ -1,6 +1,5 @@
 function test_suite = testQamModulation()
 initTestSuite;
-BASIC_FILE_PATH = 'test/files/testQamModulation';
 end
 
 function testNonRegressionBpsk()

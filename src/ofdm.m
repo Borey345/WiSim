@@ -16,12 +16,7 @@ end
 if nargin < 4
     channelOn = 1;                % Флаг включения кодера: 1 - кодер включен; 0 - кодер выключен.
 end
-nbits = 2^2*nSubcarriers;
 
-%nbits = 16;
-N           = 1;                % Number of antenn
-
-color = 'r';
 nRealiz     = 1;                % The number of realizations in statistical ensemble.
 if channelOn
     nbits = 2^4*nSubcarriers;
@@ -36,17 +31,9 @@ else
     nChannel = 1;
     nNoise = 1;
 end
-coderRate   = 1;                % Темп кодирования: 1 - 1/2; 2 - 3/4; 3 - 2/3.
 
-m           = 1;                % Флаг включения декодера Витерби: 1 - декодер включен; 0 - декодер выключен.
-dectype     = 'unquant';        % Декодер Витерби с мягкими метриками.
-global added;                % Для OFDM - систем added не ноль
-added = 0;
-
-fd          = 100 ;             % Max Dopler Frequency
-Timp        = 100*10^(-6);      % Time of impuls
-L           = 6000;            % Length
-type        = 1;
+% global added;                % Для OFDM - систем added не ноль
+% added = 0;
 
 packetLength = 48*2;
 %-------------------------------------------------------------------------%
@@ -57,73 +44,70 @@ SNR = zeros( 22, 1 );
 % H = channelCoefficients( beta );
 % H = H*64/sum( abs(H) );
 %H = (sqrt(0.5) + sqrt(0.5)*1i)*ones( 64, 1 );
+bitSource = SignalSource(1, SignalSource.TYPE_BIT);
 modulation = QamModulation(QamModulation.nModulatedBitsToModulationType(modulationType));
 
 nPoints = -min(snrValues)+max(snrValues);
+ofdmModulation = OfdmModulation(0);
 for snr = min(snrValues):max(snrValues)                                % in dB
-    noiseRate = 10^(-snr/20);                        %power is always 1, noise if different
-    %noiseRate = 0;
+
     counter = counter + 1;
     SNR(counter) = snr;
-    k=0;
+    noiseSource = SignalSource( 10^(-snr/10), SignalSource.TYPE_GAUSS );
+
     for realisation = 1 : nRealiz
-        bits = randi( [0 1], 1, modulationType*nbits );
+        
+        bits = bitSource.getSignal([1, modulationType*nbits] );
         if coderOn
             codedBits = Coder_Wi_Fi( bits );                   % action of coder
         else
             codedBits = bits;
         end
         
-        codedBits = interleaver( codedBits, modulationType, nSubcarriers );
+%         codedBits = interleaver( codedBits, modulationType, nSubcarriers );
         modulatedSignal = modulation.modulate( codedBits );         % action of modulator
         mappedSignalOriginal = mapper( modulatedSignal, nSubcarriers );  
         
+        timeDomainSignal = ofdmModulation.modulate(mappedSignalOriginal);
+        
         for noiseRealiz = 1:nNoise
             
-            noise = noiseRate*(randn(size( mappedSignalOriginal,1 ),size(mappedSignalOriginal,2))...
-                + 1i*randn(size( mappedSignalOriginal,1 ),size(mappedSignalOriginal,2)))/sqrt(2);
-            %noise = zeros( size( mappedSignalOriginal,1 ), size(mappedSignalOriginal,2) );
+            noise = noiseSource.getSignal(size(timeDomainSignal));
+            
             for channelRealiz = 1:nChannel
             
                 mappedSignal = mappedSignalOriginal;
 
-                if channelOn
-                    H = channelCoefficients( beta );
-                else 
+%                 if channelOn
+%                     H = channelCoefficients( beta );
+%                 else 
                     H = ones( 1, 64 );
-                end
-                %H = ones( 1, 64 )*(channelRealiz/4)*exp(1i*rand());
-                %H = H*64/sum( abs(H) );
-                %H = sqrt( 1:64 );
-                
+%                 end
+%                 
+% 
+%                 if channelOn
+%                     for i=1:64
+%                         mappedSignal( i,: ) = H( 1, i )*mappedSignal( i, : );
+%                     end
+%                 end
+     
+                signalWithNoise = timeDomainSignal + noise;
 
-                if channelOn
-                    for i=1:64
-                        mappedSignal( i,: ) = H( 1, i )*mappedSignal( i, : );
-                    end
-                end
+%                 if channelOn
+%                     for i=1:64
+%                         signalWithNoise( i,: ) = signalWithNoise( i, : )/H( 1, i );
+%                     end      
+%                 end
 
-        %         H = ones( size( mappedSignal,1 ),size(mappedSignal,2) );
-        %         H( 7:19, : ) = H( 7:19, : )*0.5;
-        %         H( 20:32, : ) = H( 20:32, : )*0.3;
-        %         H( 33:45, : ) = H( 33:45, : )*1.5;
-        %         H( 46:58, : ) = H( 46:58, : )*1.1;        
-                signalWithNoise = mappedSignal + noise;
-
-                if channelOn
-                    for i=1:64
-                        signalWithNoise( i,: ) = signalWithNoise( i, : )/H( 1, i );
-                    end      
-                end
+                signalWithNoise = ofdmModulation.demodulate(signalWithNoise);
 
                 demappedSignal = demapper( signalWithNoise );
-                
-                %demappedSignal = demappedSignal*0(abs(H(1,1))^2);
                 
                 channelPowers = channelPowerForDemappedSignal( H', modulationType, size( demappedSignal, 2) );
 
                 demodulatedSignal = modulation.demodulate( demappedSignal, channelPowers );       % action of demapper
-                demodulatedSignal = deinterleaver( demodulatedSignal, modulationType, nSubcarriers );
+%                 demodulatedSignal = demappedSignal;
+%                 demodulatedSignal = deinterleaver( demodulatedSignal, modulationType, nSubcarriers );
                 if coderOn
                     outBits = decoder( demodulatedSignal );
                 else

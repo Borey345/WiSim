@@ -1,7 +1,7 @@
 %figure
-SNR = -10:1:40;
+SNR = (-10:1:40);
 beta = 1;
-channelOn = 1;
+channelOn = 0;
 coderOn = 0;
 berFigure = figure;
 thFigure = figure;

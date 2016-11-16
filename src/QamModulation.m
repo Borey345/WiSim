@@ -75,7 +75,7 @@ classdef QamModulation
             switch obj.modulation
                 case QamModulation.MODULATION_BPSK
                     signal = real(signal);
-                    z = limits( signal );
+                    z = QamModulation.limits( signal );
                     bitStream = z;
                 case QamModulation.MODULATION_QPSK
                     inPhase = real( sqrt(2)*signal ); 
@@ -84,7 +84,7 @@ classdef QamModulation
                     quadrature = reshape( quadrature, 1, [] );
                     bitStream = [inPhase; quadrature];
                     bitStream = reshape( bitStream, 1, [] );
-                    bitStream = limits( bitStream );
+                    bitStream = QamModulation.limits( bitStream );
 
                 case QamModulation.MODULATION_16QAM
                     inPhase = sqrt(10)*real( signal ); 
