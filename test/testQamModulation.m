@@ -57,6 +57,7 @@ function commonQam(modulationType, bitsPerSymbol, channelEstimation, nBits)
     setRandomSeed(20);
 
     signal = source.getSignal([1, nBits]);
+    %save(sprintf('test/files/testQamModulation/nonRegresssionSignalModulation_%d', modulationType), 'signal')
     
     modulatorNew = QamModulation(modulationType);
     modulatedSignalNew = modulatorNew.modulate(signal);
@@ -66,6 +67,7 @@ function commonQam(modulationType, bitsPerSymbol, channelEstimation, nBits)
 
     noiseSource = SignalSource(1, SignalSource.TYPE_GAUSS);
     noise = noiseSource.getSignal(size(modulatedSignalNew));
+    %save(sprintf('test/files/testQamModulation/nonRegresssionNoiseModulation_%d', modulationType), 'noise')
     
     
     modulatedSignalPlusNoiseNew = modulatedSignalNew + noise;

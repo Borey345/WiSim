@@ -47,8 +47,6 @@ classdef FecCodec < handle
                 
             % 5.1.4.1.2
             outStream = [ stream0, reshape(stream1and2, 1, [])];
-            
-            
         end
         
         function [outStream, termination] = constituentEncoder( bitStream )
